@@ -7,4 +7,4 @@ The AR related project was developed in the period of  exchange student in Unive
 
 開發環境
 IDE:visual studio 2012
-OpenCV2
+<OpenCV2
