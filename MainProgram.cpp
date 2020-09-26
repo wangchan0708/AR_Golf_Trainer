@@ -1,6 +1,6 @@
 #include "stdafx.h"
-#include "rgb.h" //滑鼠動作設定 & RGB純色設定
-#include "windows display.h"
+#include "rgb.hpp" //滑鼠動作設定 & RGB純色設定
+#include "windows display.hpp"
 
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
