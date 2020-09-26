@@ -1,9 +1,11 @@
-# AR_Golf_Trainer
+﻿# AR_Golf_Trainer
 The AR related project was developed in the period of  exchange student in University of Tsukuba.
+However the "homography.xml" has been lost, so it is difficult to run this project now.
 
 此為在2015筑波大學交換時的學期成果
 <br>主要使用C/C++撰寫，使用OpenCV結合Camshift以及Kalman filter達到動態追蹤的效果
 <br>並且利用影像投影技術，實現虛擬實境(AR)的高爾夫推桿練習器
+<br>然而由於"homography.xml"(相機至投影機的轉換矩陣)已經遺失,已無法運行此檔案, 除非重新量測一次轉換矩陣
 
 開發環境
 <br>IDE:visual studio 2012

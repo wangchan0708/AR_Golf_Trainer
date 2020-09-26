@@ -22,6 +22,10 @@ using namespace std;
 
 int main( int argc, const char** argv ){
 
+    int count = 0;
+    int DELAY_CAPTION = 1500;
+    int DELAY_BLUR = 100;
+    int MAX_KERNEL_LENGTH = 31;
 
     Mat frame;
 
@@ -37,8 +41,34 @@ int main( int argc, const char** argv ){
         cout << "Cannot open the video cam" << endl;
         return -1;
     }
+    /*-------------------------------------------------------------------------
+    //先初始化kalman (kalman filter setup)
+    //Mat img(500, 500, CV_8UC3);
+	KalmanFilter KF(4, 2, 0);
+    Mat state(4, 1, CV_32F); // state(x,y,deltaX,deltaY)
+    Mat processNoise(4, 1, CV_32F);
+    Mat_<float> measurement(2,1); measurement.setTo(Scalar(0));//measurement(x,y)
+	KF.statePre.at<float>(0) = mousePosition.x;
+    KF.statePre.at<float>(1) = mousePosition.y;
+                    
 
-	//camshift 定義
+    char code = (char)-1;
+	randn( state, Scalar::all(0), Scalar::all(0.1) );
+	
+	KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1); // Including velocity
+	KF.processNoiseCov = *(cv::Mat_<float>(4,4) << 0.2,0,0.2,0,  0,0.2,0,0.2,  0,0,0.3,0,  0,0,0,0.3);
+
+	//memcpy(KF->transitionMatrix->data.fl,A,sizeof(A)); 
+    setIdentity(KF.measurementMatrix);
+    setIdentity(KF.processNoiseCov, Scalar::all(1e-5));
+    setIdentity(KF.measurementNoiseCov, Scalar::all(1e-1));
+    setIdentity(KF.errorCovPost, Scalar::all(1));
+	//initialize post state of kalman filter at random
+    randn(KF.statePost, Scalar::all(0), Scalar::all(0.1));
+
+	*/
+
+    //camshift 定義
 	VideoWriter writer("VideoTest.avi", CV_FOURCC('M', 'J', 'P', 'G'), 25.0, Size(640, 480));  //將攝影內容轉成avi輸出
     Rect trackWindow;
     RotatedRect trackBox; //定義旋轉矩陣
