@@ -4,28 +4,18 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 
-//--------------------------------------------------------------------------------
-
 using namespace cv;
 using namespace std;
 
-//--------------------------------------------------------------------------------
-
 #include "stdafx.h"
 
-//--------------------------------------------------------------------------------
 
 int width = 640;
 int height = 480;
 Mat image(cv::Size(640, 480), CV_8UC3);
 Mat hsv, hue, mask, histimg;
 IplImage *img_out;
-/*
-CvHistogram *hist = 0;
-CvHistogram *hist_0 = 0;
-CvHistogram *hist_1 = 0;
-CvHistogram *hist_2 = 0;
-*/
+
 
 Mat hist;
 
@@ -36,44 +26,45 @@ bool showHist = true;
 Point origin;
 Rect selection;
 Rect trackWindow, trackWindow_temp;
-RotatedRect trackBox; // tracking 返回的区域 box，带角度
+
+RotatedRect trackBox; // tracking 返回带角度的區域 box
 CvConnectedComp track_comp;
-int hdims = 80; // 划分HIST的个数，越高越精确
+int hdims = 80; // 劃分HIST的個數，越高越精確
 int hsize = 16;
 float hranges[] = {0, 180};
 const float *phranges = hranges;
 int vmin = 10, vmax = 256, smin = 30;
 
-//--------------------------------------
-Point mousePosition; //这个用于储存 camshift 得到的 track_box.center.x and y
 
-Point predict_pt; //这个就是 kalman 的预测坐标
+Point mousePosition; //用來儲存 camshift 得到的 track_box.center.x and y
 
-const int winHeight = 640; //这个就是采集到的视频大小，这个写固定320 * 240  640 * 480
+Point predict_pt; // kalman 的預測座標
+
+const int winHeight = 640; //採集到的影像大小
 const int winWidth = 480;
 
-bool bOnceSave = true; //保存数据只运行一次
-int minWidth = 0;      //保存初始化时，跟踪的矩形框大小，之后跟踪的矩形框不能小于这个
+bool bOnceSave = true; //保存數據只執行一次
+int minWidth = 0;      //保存初始化時，跟蹤地矩形框大小，之後跟蹤的矩形框不能小於這個
 int minHeight = 0;
 
 //----------------------------------------
-Point NowCursorPos; //存放当前的鼠标坐标
+Point NowCursorPos; //存放當前的滑鼠座標
 //Point OldCursorPos;
 Point OldBox; //跟踪矩形框
 Point NowBox;
 
-int iOldSize = 0; //保存第一次运行的矩阵面积
+int iOldSize = 0; //保存第一次運行的矩陣面積
 int iNowSize = 0;
 
-int iframe = 0; //统计帧数，每3帧数进行一次跟踪坐标的计算，获取一次当前鼠标位置，然后计算
+int iframe = 0; //統計禎數，每3張帧数进行一次跟踪座標的計算，獲取一次當時滑鼠位置，然後計算
 
-//----------------------------------------
+//---------------------------------------
 
 void onMouse(int event, int x, int y, int, void *) //定義滑鼠點擊
 {
     if (selectObject)                   //當左鍵按下時開始圈選
     {                                   //矩形大小定位
-        selection.x = MIN(x, origin.x); //讓滑鼠左右拉都可,只有origin的話只可右拉
+        selection.x = MIN(x, origin.x); //讓滑鼠左右拉都可,但origin的話只可右拉
         selection.y = MIN(y, origin.y);
         selection.width = abs(x - origin.x);
         selection.height = abs(y - origin.y);
@@ -119,7 +110,7 @@ CvScalar hsv2rgb(float hue)
     return cvScalar(rgb[2], rgb[1], rgb[0], 0);
 }
 
-//读取Red初始化图片，以便進行tracking
+//讀Red初始化圖片，以便進行tracking
 bool loadTemplateImage_R()
 {
     Mat tempimage = imread("d:/red.png");
@@ -148,18 +139,13 @@ bool loadTemplateImage_R()
     calcHist(&tempimage, 1, 0, maskroi, hist, 1, &hsize, &phranges);
     normalize(hist, hist, 0, 255, CV_MINMAX);
 
-    /*
-	float max_val = 0.f;  
-	minMaxLoc(hist, 0, &max_val, 0, 0);
 
-	cvConvertScale( hist->bins, hist->bins, max_val ? 255. / max_val : 0., 0 );
-	*/
     trackWindow = selection;
     trackObject = 1;
 
     return true;
 }
-//读取Green初始化图片，以便進行tracking
+//讀取Green初始化圖片，以便進行tracking
 bool loadTemplateImage_G()
 {
     Mat tempimage = imread("d:/green.png", 1);
@@ -189,19 +175,14 @@ bool loadTemplateImage_G()
     calcHist(&tempimage, 1, 0, maskroi, hist, 1, &hsize, &phranges);
     normalize(hist, hist, 0, 255, CV_MINMAX);
 
-    /*
-	float max_val = 0.f;  
-	minMaxLoc(hist, 0, &max_val, 0, 0);
-
-	cvConvertScale( hist->bins, hist->bins, max_val ? 255. / max_val : 0., 0 );
-	*/
 
     trackWindow = selection;
     trackObject = 1;
 
     return true;
 }
-//读取Blue初始化图片，以便進行tracking
+
+//讀取Blue的初始化圖片，以便進行tracking
 bool loadTemplateImage_B()
 {
     Mat tempimage = imread("d:/blue.png", 1);
@@ -215,7 +196,6 @@ bool loadTemplateImage_B()
 
     inRange(hsv, Scalar(0, smin, MIN(_vmin, _vmax), 0), Scalar(180, 256, MAX(_vmin, _vmax), 0), mask);
     Mat chan[3];
-
     //int chan[]={0,0,0};
     *(Mat_<float>(4, 4) << 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);
     split(hsv, chan);
@@ -233,20 +213,13 @@ bool loadTemplateImage_B()
     calcHist(&tempimage, 1, 0, maskroi, hist, 1, &hsize, &phranges);
     normalize(hist, hist, 0, 255, CV_MINMAX);
 
-    /*
-	float max_val = 0.f;  
-	minMaxLoc(hist, 0, &max_val, 0, 0);
-
-	cvConvertScale( hist->bins, hist->bins, max_val ? 255. / max_val : 0., 0 );
-	*/
-
     trackWindow = selection;
     trackObject = 1;
 
     return true;
 }
 
-//减法求绝对值的
+//减法求絕對值的
 int iAbsolute(int a, int b)
 {
     int c = 0;
