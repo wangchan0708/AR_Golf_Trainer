@@ -41,7 +41,7 @@ int main( int argc, const char** argv ){
         cout << "Cannot open the video cam" << endl;
         return -1;
     }
-    /*-------------------------------------------------------------------------
+    
     //先初始化kalman (kalman filter setup)
     //Mat img(500, 500, CV_8UC3);
 	KalmanFilter KF(4, 2, 0);
@@ -55,7 +55,13 @@ int main( int argc, const char** argv ){
     char code = (char)-1;
 	randn( state, Scalar::all(0), Scalar::all(0.1) );
 	
-	KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1); // Including velocity
+	/*
+                | 1 0 1 0 |                | 0.2  0   0.2   0  |
+     TransMat = | 0 1 0 1 |     Process =  |  0  0.2   0   0.2 |
+                | 0 0 1 0 |                |  0   0   0.3   0  |
+                | 0 0 0 1 |                |  0   0    0   0.3 |
+    */
+    KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1); // Including velocity
 	KF.processNoiseCov = *(cv::Mat_<float>(4,4) << 0.2,0,0.2,0,  0,0.2,0,0.2,  0,0,0.3,0,  0,0,0,0.3);
 
 	//memcpy(KF->transitionMatrix->data.fl,A,sizeof(A)); 
@@ -66,7 +72,6 @@ int main( int argc, const char** argv ){
 	//initialize post state of kalman filter at random
     randn(KF.statePost, Scalar::all(0), Scalar::all(0.1));
 
-	*/
 
     //camshift 定義
 	VideoWriter writer("VideoTest.avi", CV_FOURCC('M', 'J', 'P', 'G'), 25.0, Size(640, 480));  //將攝影內容轉成avi輸出
@@ -170,7 +175,7 @@ int main( int argc, const char** argv ){
                 RotatedRect trackBox = CamShift(backproj, trackWindow,
                                                 TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1)); //TermCriteria是迭代終止的條件
 
-                //---------------------------------------------
+                
                 //保存最小要求的矩形框大小
                 /*
 				if (bOnceSave){
@@ -194,12 +199,9 @@ int main( int argc, const char** argv ){
                     histimg = Scalar::all(0);
                 }
 
-                //----------------------------------------
+                
                 //速度值運算
-
                 float x = trackBox.center.x, y = trackBox.center.y;
-                // cout<<"(x:"<<x<<",y:"<<y<<")"<<endl;
-
                 float daltCam_x, daltCam_y;
                 float vx, vy;
 
@@ -213,14 +215,13 @@ int main( int argc, const char** argv ){
                 //從camera轉至floor
                 //Mat deltCam=(Mat_<float>(3,1)<<daltCam_x,daltCam_y,1); //轉算前矩陣定義
                 //Mat deltFloor;//宣告轉換後的矩陣定義
-
                 Point2f deltCam_p(daltCam_x, daltCam_y);
                 Point2f deltFloor_p;
                 Mat_<Point2f> deltCam(1, 1, deltCam_p); //vector to mat
                 Mat deltFloor;                          //宣告轉換後的矩陣定義
 
 
-                char filename[] = "homography.xml";
+                char filename[] = "homography.xml"; //floor - cam - projector 的轉換矩陣
                 Mat H21, H22;
                 FileStorage fs(filename, CV_STORAGE_READ); //open file storage
 
@@ -241,6 +242,198 @@ int main( int argc, const char** argv ){
 
                 arrowedLine(image, p1, trackBox.center, Scalar(255, 0, 0), 5, CV_AA); //將速度方向視覺化(箭頭)
 
+                mousePosition.x = trackBox.center.x;
+		        mousePosition.y = trackBox.center.y;
+			    
+                
+                //進行进行 kalman 预测，可以得到 predict_pt 预测坐标
+			    //2.kalman prediction
+                Mat prediction = KF.predict();
+                randn( measurement, Scalar::all(0), Scalar::all(KF.measurementNoiseCov.at<float>(0)));
+			    Point predict_pt(prediction.at<float>(0),prediction.at<float>(1));
+			
+                //3.update measurement
+			    measurement(0) = mousePosition.x;
+                measurement(1) = mousePosition.y;
+
+			    Point measPt(measurement(0),measurement(1));
+
+			    //4.update
+			    Mat estimated = KF.correct(measurement);
+                Point statePt(estimated.at<float>(0),estimated.at<float>(1));
+			    //因为视频设置的采集大小是640 * 480，那么这个搜索区域夸大后也得在这范围内
+
+                //==========================================================================
+	    		//下面这里其实就是一个粗略的预测 trackWindow 的范围
+			    //因为在鼠标选取的时候，有时可能只是点击了窗体，所以没得 width  和 height 都为0
+			    //==========================================================================
+                int iBetween = 0;
+			    //确保预测点 与 实际点之间 连线距离 在 本次 trackBox 的size 之内
+			    iBetween = sqrt(powf((predict_pt.x - trackBox.center.x),2) + powf((predict_pt.y- trackBox.center.y),2) );
+
+			    CvPoint prePoint;//预测的点 相对于 实际点 的对称点
+
+			    if ( iBetween > 5)
+			    {
+				    //当实际点 在 预测点 右边
+				    if (trackBox.center.x > predict_pt.x)
+				    {
+					    //且，实际点在 预测点 下面
+					    if (trackBox.center.y > predict_pt.y)
+					    {
+						    prePoint.x = trackBox.center.x + iAbsolute(trackBox.center.x,predict_pt.x);
+						    prePoint.y = trackBox.center.y + iAbsolute(trackBox.center.y,predict_pt.y);
+					    }
+					    //且，实际点在 预测点 上面
+					    else
+					    {
+						    prePoint.x = trackBox.center.x + iAbsolute(trackBox.center.x,predict_pt.x);
+						    prePoint.y = trackBox.center.y - iAbsolute(trackBox.center.y,predict_pt.y);
+					    }
+					    //宽高
+					    if (trackWindow.width != 0)
+					    {
+						    trackWindow.width += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
+					    }
+
+					    if (trackWindow.height != 0)
+					    {
+						    trackWindow.height += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
+					    }
+				    }
+				    //当实际点 在 预测点 左边
+				    else
+				    {
+					    //且，实际点在 预测点 下面
+					    if (trackBox.center.y > predict_pt.y)
+					    {
+						    prePoint.x = trackBox.center.x - iAbsolute(trackBox.center.x,predict_pt.x);
+						    prePoint.y = trackBox.center.y + iAbsolute(trackBox.center.y,predict_pt.y);
+					    }
+					    //且，实际点在 预测点 上面
+					    else
+					    {
+						    prePoint.x = trackBox.center.x - iAbsolute(trackBox.center.x,predict_pt.x);
+						    prePoint.y = trackBox.center.y - iAbsolute(trackBox.center.y,predict_pt.y);
+					    }
+					    //宽高
+					    if (trackWindow.width != 0)
+					    {
+						    trackWindow.width += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
+					    }
+
+					    if (trackWindow.height != 0)
+					    {
+						    trackWindow.height += iBetween +iAbsolute(trackBox.center.x,predict_pt.x);
+					    }
+				    }
+
+				    trackWindow.x = prePoint.x - iBetween;	
+				    trackWindow.y = prePoint.y - iBetween;
+			    }
+			    else
+			    {
+				    trackWindow.x -= iBetween;
+				    trackWindow.y -= iBetween;
+				    //宽高
+				    if (trackWindow.width != 0)
+				    {
+					    trackWindow.width += iBetween;
+				    }
+
+				    if (trackWindow.height != 0)
+				    {
+					    trackWindow.height += iBetween;
+				    }
+			    }
+
+			    //跟踪的矩形框不能小于初始化检测到的大小，当这个情况的时候，X 和 Y可以适当的在缩小
+			    minWidth = trackBox.size.width;
+		        minHeight = trackBox.size.height;
+			    if (trackWindow.width < minWidth)
+			    {
+				    trackWindow.width = minWidth;
+				    trackWindow.x -= iBetween;
+			    }
+			    if (trackWindow.height < minHeight)
+			    {
+		    		trackWindow.height = minHeight;
+			    	trackWindow.y -= iBetween;
+			    }
+
+			    //确保调整后的矩形大小在640 * 480之内
+	    		if (trackWindow.x <= 0)
+		    	{
+		    		trackWindow.x = 0;
+		    	}
+			    if (trackWindow.y <= 0)
+			    {
+			    	trackWindow.y = 0;
+			    }
+		    	if (trackWindow.x >= 600)
+		    	{
+		    		trackWindow.x = 600;
+		    	}
+		    	if (trackWindow.y >= 440)
+		    	{
+			    	trackWindow.y = 440;
+			    }
+
+			    if (trackWindow.width + trackWindow.x >= 640)
+			    {
+				    trackWindow.width = 640 - trackWindow.x;
+		    	}
+		    	if (trackWindow.height + trackWindow.y >= 640)
+		    	{
+                  trackWindow.height = 640 - trackWindow.y;
+		    	}
+			
+			//------------------------------------------------------------------------------------------
+			    img_out=cvCreateImage(cvSize(winWidth,winHeight),8,3);
+			    cvSet(img_out,cvScalar(255,255,255,0));
+			    char buf[256];
+			    sprintf(buf,"%d",iBetween);
+			    cvPutText(img_out,buf,cvPoint(10,30),&font,CV_RGB(0,0,0));
+			    sprintf(buf,"%d : %d",trackWindow.x,trackWindow.y);
+			    cvPutText(img_out,buf,cvPoint(10,50),&font,CV_RGB(0,0,0));
+			    sprintf(buf,"%d : %d",trackWindow.width,trackWindow.height);
+			    cvPutText(img_out,buf,cvPoint(10,70),&font,CV_RGB(0,0,0));
+
+			    sprintf(buf,"size: %0.2f",trackBox.size.width * trackBox.size.height);
+			    cvPutText(img_out,buf,cvPoint(10,90),&font,CV_RGB(0,0,0));
+			//-------------------------------------------------------------------------------------
+			
+			/*if( image->origin )
+				trackBox.angle = -trackBox.angle;
+				*/
+		    	POINT OldCursorPos;
+		  
+			    if (iframe == 0)
+			    {   
+                    GetCursorPos(&OldCursorPos);
+				    OldBox.x = trackBox.center.x;
+				    OldBox.y = trackBox.center.y;
+		    	}
+			    if (iframe < 3)//每3帧进行一次判断
+			    {
+				    iframe++;
+    			}
+	    		else
+		    	{
+			    	iframe = 0;
+				    iNowSize = trackBox.size.width * trackBox.size.height;
+
+	    			if ((iNowSize / iOldSize) > (3/5))
+		    		{
+			    		NowBox.x = trackBox.center.x;
+				    	NowBox.y = trackBox.center.y;
+
+					    SetCursorPos(OldCursorPos.x - (NowBox.x - OldBox.x)*1366/640,
+					    OldCursorPos.y - (NowBox.y - OldBox.y)*768/480);
+				    }
+			    }
+			//--------------------------------------------------------------------------
+			
             }
         }
 
