@@ -244,10 +244,9 @@ int main( int argc, const char** argv ){
 
                 mousePosition.x = trackBox.center.x;
 		        mousePosition.y = trackBox.center.y;
-			    
-                
-                //進行进行 kalman 预测，可以得到 predict_pt 预测坐标
-			    //2.kalman prediction
+
+                //進行kalman預測，可以得到新的predict_pt預測座標
+                //2.kalman prediction
                 Mat prediction = KF.predict();
                 randn( measurement, Scalar::all(0), Scalar::all(KF.measurementNoiseCov.at<float>(0)));
 			    Point predict_pt(prediction.at<float>(0),prediction.at<float>(1));
@@ -261,36 +260,36 @@ int main( int argc, const char** argv ){
 			    //4.update
 			    Mat estimated = KF.correct(measurement);
                 Point statePt(estimated.at<float>(0),estimated.at<float>(1));
-			    //因为视频设置的采集大小是640 * 480，那么这个搜索区域夸大后也得在这范围内
+			    //Note:因為影像大小是640 * 480，所以這個估測區域跨大後也得在這範圍內
 
                 //==========================================================================
-	    		//下面这里其实就是一个粗略的预测 trackWindow 的范围
-			    //因为在鼠标选取的时候，有时可能只是点击了窗体，所以没得 width  和 height 都为0
-			    //==========================================================================
+                //下面為粗略地預測了trackWindow的範圍
+                //因為滑鼠選取時，有可能只是點擊了窗體，使得 width  和 height 都为0
+                //==========================================================================
                 int iBetween = 0;
-			    //确保预测点 与 实际点之间 连线距离 在 本次 trackBox 的size 之内
+			    //確保預測點與實際點之間的距離在本次的trackBox的範圍內
 			    iBetween = sqrt(powf((predict_pt.x - trackBox.center.x),2) + powf((predict_pt.y- trackBox.center.y),2) );
 
-			    CvPoint prePoint;//预测的点 相对于 实际点 的对称点
+			    CvPoint prePoint;//預測點  相對於  實際點  的對稱點
 
 			    if ( iBetween > 5)
 			    {
-				    //当实际点 在 预测点 右边
+				    //當實際點在預測點 右邊
 				    if (trackBox.center.x > predict_pt.x)
 				    {
-					    //且，实际点在 预测点 下面
-					    if (trackBox.center.y > predict_pt.y)
+                        //且實際點在預測點 下方
+                        if (trackBox.center.y > predict_pt.y)
 					    {
 						    prePoint.x = trackBox.center.x + iAbsolute(trackBox.center.x,predict_pt.x);
 						    prePoint.y = trackBox.center.y + iAbsolute(trackBox.center.y,predict_pt.y);
 					    }
-					    //且，实际点在 预测点 上面
-					    else
+                        //或實際點在預測點 上面
+                        else
 					    {
 						    prePoint.x = trackBox.center.x + iAbsolute(trackBox.center.x,predict_pt.x);
 						    prePoint.y = trackBox.center.y - iAbsolute(trackBox.center.y,predict_pt.y);
 					    }
-					    //宽高
+					    //寬高
 					    if (trackWindow.width != 0)
 					    {
 						    trackWindow.width += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
@@ -301,22 +300,22 @@ int main( int argc, const char** argv ){
 						    trackWindow.height += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
 					    }
 				    }
-				    //当实际点 在 预测点 左边
-				    else
+                    //當實際點在預測點 左邊
+                    else
 				    {
-					    //且，实际点在 预测点 下面
-					    if (trackBox.center.y > predict_pt.y)
+                        //且實際點在預測點 下面
+                        if (trackBox.center.y > predict_pt.y)
 					    {
 						    prePoint.x = trackBox.center.x - iAbsolute(trackBox.center.x,predict_pt.x);
 						    prePoint.y = trackBox.center.y + iAbsolute(trackBox.center.y,predict_pt.y);
 					    }
-					    //且，实际点在 预测点 上面
-					    else
+                        //或實際點在預測點 上面
+                        else
 					    {
 						    prePoint.x = trackBox.center.x - iAbsolute(trackBox.center.x,predict_pt.x);
 						    prePoint.y = trackBox.center.y - iAbsolute(trackBox.center.y,predict_pt.y);
 					    }
-					    //宽高
+					    //寬高
 					    if (trackWindow.width != 0)
 					    {
 						    trackWindow.width += iBetween + iAbsolute(trackBox.center.x,predict_pt.x);
@@ -335,7 +334,7 @@ int main( int argc, const char** argv ){
 			    {
 				    trackWindow.x -= iBetween;
 				    trackWindow.y -= iBetween;
-				    //宽高
+				    //寬高
 				    if (trackWindow.width != 0)
 				    {
 					    trackWindow.width += iBetween;
@@ -347,7 +346,7 @@ int main( int argc, const char** argv ){
 				    }
 			    }
 
-			    //跟踪的矩形框不能小于初始化检测到的大小，当这个情况的时候，X 和 Y可以适当的在缩小
+			    //跟蹤的矩形框不能小於初始化檢測到的大小,如果遇到此情況,x和y可以適當地再縮小
 			    minWidth = trackBox.size.width;
 		        minHeight = trackBox.size.height;
 			    if (trackWindow.width < minWidth)
@@ -361,7 +360,7 @@ int main( int argc, const char** argv ){
 			    	trackWindow.y -= iBetween;
 			    }
 
-			    //确保调整后的矩形大小在640 * 480之内
+			    //確保調整後的矩形大小在640*480內
 	    		if (trackWindow.x <= 0)
 		    	{
 		    		trackWindow.x = 0;
@@ -405,7 +404,7 @@ int main( int argc, const char** argv ){
 			
 			/*if( image->origin )
 				trackBox.angle = -trackBox.angle;
-				*/
+			*/
 		    	POINT OldCursorPos;
 		  
 			    if (iframe == 0)
@@ -414,7 +413,7 @@ int main( int argc, const char** argv ){
 				    OldBox.x = trackBox.center.x;
 				    OldBox.y = trackBox.center.y;
 		    	}
-			    if (iframe < 3)//每3帧进行一次判断
+			    if (iframe < 3)//每3帧進行一次判斷
 			    {
 				    iframe++;
     			}
