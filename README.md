@@ -10,3 +10,5 @@ However the "homography.xml" has been lost, so it is difficult to run this proje
 開發環境
 <br>IDE:visual studio 2012
 <br> OpenCV2
+
+![image](https://github.com/wangchan0708/AR_Golf_Trainer/blob/master/Demo.gif?raw=true)
