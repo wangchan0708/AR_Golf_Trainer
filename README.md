@@ -1,6 +1,7 @@
 ﻿# AR_Golf_Trainer
-The AR related project was developed in the period of  exchange student in University of Tsukuba.
-However the "homography.xml" has been lost, so it is difficult to run this project now.
+The AR related project was developed when 2015 as exchange student in University of Tsukuba .
+However, unfortunately, the "homography.xml" has been lost, so it is difficult to run this project now.
+<br>The main idea is built on OpenCV with the concept of camshift and kalman filter 
 
 此為在2015筑波大學交換時的學期成果
 <br>主要使用C/C++撰寫，使用OpenCV結合Camshift以及Kalman filter達到動態追蹤的效果
